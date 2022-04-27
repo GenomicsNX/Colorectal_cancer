@@ -1,0 +1,51 @@
+barplot_M1<-read.csv(file = "barplot_Dendritic_cells.csv",row.names=1)
+
+# load the library
+library(forcats)
+
+# Reorder following the value of another column
+
+barplot(barplot_M1)
+
+str(barplot_M1)
+
+hist(barplot_M1)
+
+barplot_M1<-barplot_M1 %>% arrange(desc(Correlation.Coefficient))
+
+
+barplot_M1$Bacteria <- rownames(barplot_M1)
+
+
+rownames(barplot_M1)<-barplot_M1$Bacteria
+barplot(barplot_M1$Correlation.Coefficient, horiz = T,
+        xlab = "Correlation Coefficient",
+        ylab = "Bacteria")  
+
+
+
+my_ggp<-barplot_M1 %>%
+  mutate(name = fct_reorder(Bacteria, Correlation.Coefficient)) %>%
+  ggplot( aes(x=reorder(Bacteria,Correlation.Coefficient), y=Correlation.Coefficient))+
+  geom_bar(stat="identity", width=.7)+
+  coord_flip() +
+  xlab("Bacteria") +
+  theme_bw()
+
+
+my_ggp + theme(text = element_text(size = 20))+
+  theme(axis.text.x = element_text(size=20,
+                                   face='plain'
+  ),
+  axis.text.y = element_text(size =20,
+                             face = 'italic',
+  ))
+
+
+ggsave(
+  filename ='barplot_DC.png',
+  device = 'png',
+  dpi = 1200
+)
+
+
