@@ -1,0 +1,11 @@
+z_scores <- (heatmap.count-mean(heatmap.count))/sd(heatmap.count)
+
+znorm(heatmap.count)
+
+heatmap.count<-as.matrix(heatmap.count)
+
+install.packages("pheatmap")
+library(pheatmap)
+
+
+pheatmap(heatmap.count,scale = "row", cluster_rows = TRUE)
