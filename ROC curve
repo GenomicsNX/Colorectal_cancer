@@ -1,0 +1,48 @@
+# ROC curve
+
+install.packages("pROC") 
+
+library(pROC)
+library(MASS)
+
+data("Pima.te")
+View(Pima.te)
+
+summary(Pima.te)   # 데이터의 구조 및 요약 정보를 살펴봅니다.
+
+rsdf$score
+
+Diag_DF <- data.frame(Attribute=c(colnames(rsdf)[2:10]), AUC=NA)   # AUC 계산을 위한 데이터 프레임을 생성합니다. 종속변수, 독립변수 포함 
+for(i in 1:nrow(Diag_DF)){
+  roc_result <- roc(rsdf$OS, rsdf[,as.character(Diag_DF$Attribute[i])])   # 확진 결과에 대한 데이터(type)와 진단 방법에 대한 후보 변수를 입력하여 AUC를 계산합니다. 
+  Diag_DF[i,'AUC'] <- roc_result$auc   # AUC 값을 입력합니다.
+}
+Diag_DF <- Diag_DF[order(-Diag_DF$AUC),]   # AUC 값을 오름차순 정렬합니다.
+
+View(Diag_DF)
+
+colnames(rsdf)
+
+risk_roc <- roc(rsdf$OS, rsdf$rsTLR8)   # "glu" 변수에 대한 ROC를 계산하여 value로 저장합니다.
+
+  # 그래프 저장 형식과 파일명을 설정합니다.
+png(filename="adddata/riskscore/TLR8.png",width=5000,height=4000,res=500)
+plot.roc(risk_roc,   # roc를 계산한 value를 입력합니다.
+         col="red",   # 선의 색상을 설정합니다.
+         print.auc=TRUE,   # auc 값을 출력하도록 설정합니다.
+         max.auc.polygon=TRUE,   # auc의 최대 면적을 출력하도록 설정합니다.
+         print.thres=TRUE, print.thres.pch=19, print.thres.col = "red",   # 기준치(cut-off value)에 대한 출력, 포인트, 색상을 설정합니다.
+         auc.polygon=TRUE, auc.polygon.col="#D1F2EB",
+         print.thres.adj=c(0.55,-3), # (x,y) 좌표 위치 (좌우,상하)
+         print.auc.adj=c(0,1))  # AUC 위치
+dev.off()
+
+# 저장
+
+png(filename="adddata/riskscore/risk score .png",width=5000,height=4000,res=500)
+
+dev.off()
+
+####
+
+rsdf<-risk_score_final[,c(2,4:12)]
