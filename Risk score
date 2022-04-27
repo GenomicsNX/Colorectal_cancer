@@ -1,0 +1,151 @@
+install.packages("devtools")
+library(devtools)
+
+install.packages("pkgload")
+library(pkgload)
+devtools::install_github("huynguyen250896/geneSA")
+
+library(geneSA)
+
+# risk score
+
+r.score<-exp
+
+r.score<-t(r.score)
+
+r.score<-as.data.frame(r.score)
+
+
+r.score$PATIENT<-rownames(r.score)
+r.score<- merge(right_dataset[,c(1,14,1384)],r.score,by="PATIENT")
+rownames(r.score)<-r.score[,1]
+
+exp2<-r.score[,-c(1:3)]
+
+exp1$`HLA-DMA`
+############################################
+
+# exp is a matrix whose rows are samples and columns are genomic features
+#>median is up-regulated genes and <median is down regulated genes
+exp1 <- apply(exp,2, function(x) ifelse(x > median(x),"high","low")) %>% as.data.frame()
+
+#Make sure samples that in rows of exp1 are also included in rows of clinical_exp and in exactly the same order
+all(rownames(exp1) == rownames(r.score))
+
+test<-(exp1)[-c(38:47)]
+#5Y
+r.binary_60month<-exp1[exp1$OS.month<=60,]
+exp1<-r.binary_60month[,-c(1:3)]
+exp11<-exp1[,-c(1:3)]
+#RUN!!!
+geneSA(data = r.score_60month, time = r.score_60month$OS.month, status = r.score_60month$OS, Pcut = 0.05, Qcut= 1)
+
+
+# hub-genes kaplan-meier sruvivial analysis
+
+colnames(r.score)[28]
+median(r.score$CXCL13, na.rm = FALSE)
+r.score<- mutate(r.score,CXCL13=ifelse(r.score[,28]>=3.627786,"high","low"))
+############
+exp1$PATIENT<-rownames(exp1)
+exp1<-merge(r.score[,c(1:3)],exp1,by="PATIENT")
+rownames(r.score_60month)<-r.score_60month[,1]
+r.binary_60month<-r.score_BACKUP[r.score_BACKUP$OS.month<=60,]
+
+exp1<-exp1[exp1$OS.month<=60,]
+
+# 5 years KM-survival analysis
+
+library(ggplot2)
+library(dplyr)
+library(survival)
+library(survminer)
+
+r.score_60month<-exp1[exp1$OS.month<=60,]
+
+
+sfit<-survfit(Surv(OS.month,OS)~CTLA4,data=exp1)
+
+ggsurvplot(sfit,pval=TRUE)
+
+###############################
+# 14개 발현값.
+
+#Risk-score [CCL4, CD274, CD38, CTLA4, CXCL13, IFNG, IL1B, IL2RA, PTPRC, CXCL1, CXCL10, ICAM1]
+
+
+
+exp1$`HLA-DPA1`
+
+##############################################################
+
+sfit<-survfit(Surv(OS.month,OS)~IFNG,data=exp1)
+
+
+
+ggsurv<-ggsurvplot(sfit,pval=TRUE, risk.table=FALSE,pval.size=10,
+                   title="",
+                   fontsize=10,
+                   censor.size=7,
+                   legend.labs=c("High", "Low"), legend.title="IFNG",
+                   palette=c("red","dodgerblue2"),
+                   font.legend= c(20, "bold", "black"),
+                   ggtheme = theme_bw(),
+                   xlab = "Time(Months)",
+                   font.main = c(20, "bold", "black"),
+                   font.x = c(20, "bold", "black"),
+                   font.y = c(20, "bold", "black"),
+                   font.tickslab = c(10, "plain", "black"),
+                   
+)
+
+ggsurv$plot <- ggsurv$plot + 
+  theme(legend.title = element_text(size = 18, color = "black", face = "bold"),
+        legend.text = element_text(size = 18, color = "black", face = "bold"),
+        axis.text.x = element_text(size = 20, color = "black", face = "plain"),
+        axis.text.y = element_text(size = 20, color = "black", face = "plain"),
+        axis.title.x = element_text(size = 20, color = "black", face = "plain"),
+        axis.title.y = element_text(size = 20, color = "black", face = "plain"))
+ggsurv
+
+
+
+
+ggsave(filename ='/home/dongmin/colorectal cancer microbiome/adddata/riskscore/TMM/HLA-DPA1.png',
+       device = 'png',
+       dpi = 1200,
+       width= 10000,
+       height = 8000,
+       units = "px")
+
+save.image(file = "20220107.RData")
+
+##############################################
+
+r.score_60month$`HLA-DPA1`
+
+r.score_60month<-r.score[r.score$OS.month<=60,]
+
+colnames(r.score_60month)
+
+
+out = coxph(Surv(OS.month,OS)~r.score_60month$CCL4, data=r.score_60month)
+
+ggforest(out, data=r.score_60month,
+         fontsize = 1)
+
+summary(out)
+out
+
+right_dataset_60month[,c(1311,14)]
+
+ggsave(filename ='/home/dongmin/colorectal cancer microbiome/adddata/riskscore/microbiome/g__Pragia.png',
+       device = 'png',
+       dpi = 1200,
+       width= 10000,
+       height = 8000,
+       units = "px")
+
+save.image(file="20220107.RData")
+write.csv(r.score_60month,file="/home/dongmin/colorectal cancer microbiome/adddata/riskscore/lasso_data.csv")
+write.csv(exp1,file = "/home/dongmin/colorectal cancer microbiome/adddata/riskscore/lasso_binary.csv")
