@@ -1,0 +1,304 @@
+if (!requireNamespace("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+
+BiocManager::install("GEOquery")
+library('GEOquery')
+Sys.setenv("VROOM_CONNECTION_SIZE" = 131072*1000)
+gse <- getGEO("GSE103479", GSEMatrix =TRUE, AnnotGPL=TRUE)[[1]]
+
+pset_ALL<-pset
+pset <- pData(gse)
+eset <- exprs(gse)
+fset<-fData(gse)
+
+write.csv(pset, file = "./adddata/riskscore/GSE103479_pset.csv")
+pset<- read.csv(file= "./adddata/riskscore/GSE103479_clinical.csv", row.names = 1)
+ff<-read.csv(file= "./adddata/riskscore/GSE103479_pset.csv", row.names = 1)
+
+#expression dataframe rownames symbol로 변경 
+
+pset$`Location:ch1`
+
+symbol<-(fset)[,c(1,5)]
+
+eset<- merge(symbol[2],eset, by="row.names")
+eset<-eset[-1]
+
+
+colnames(eset)[1]<- "SYMBOL"
+
+
+eset_merge<-aggregate(. ~ SYMBOL, data = eset, mean) 
+eset_merge<-eset_merge[-1,] # 22189
+rownames(eset_merge) <- eset_merge$SYMBOL
+eset_merge<- eset_merge[,-1]
+
+
+################################################
+eset_merge 
+table(pset$Location)
+
+rightCRC_pset <- pset[(pset$Location %in% "Right"),]
+
+w<-which(colnames(eset_merge) %in% pset$PATIENT)
+
+# rightCRC expression
+exp <- eset_merge[,w]
+###############################
+
+Texp<-t(exp)
+Texp<- as.data.frame(Texp)
+median(Texp$TLR8)
+
+Texp$PATIENT<-row.names(Texp)
+Texp<-merge(pset,Texp, by="PATIENT")
+
+#CTLA4, CD274, CXCL1, CXCL10, HLA-DPA1, IFNG, IL1A, IL1B, TLR8
+row.names(Texp)<-Texp$PATIENT
+
+Texp_60month<-Texp[Texp$OS.month<=60,]
+
+GSE103479 <-(Texp_60month[, c("OS.month","PFS.month","OS", "PFS", "CTLA4","CD274","CXCL1","CXCL10", "HLA-DPA1", "IFNG", "IL1A", "IL1B", "TLR8")])
+
+########################################################
+########################################################
+########################################################
+
+
+
+# LASSO
+library(caret)
+
+
+df<-(GSE103479[, c("PFS","CTLA4","CD274","CXCL1","CXCL10", "HLA-DPA1", "IFNG", "IL1A", "IL1B", "TLR8")])
+df<-GSE103479
+
+# Set seed
+set.seed(123)
+
+
+# Partition (split) and create index matrix of selected values
+train<-createDataPartition(y=df$PFS, p=0.7, list=FALSE) # 종속변수 y 지정, p : training data의 비율, list : T(list), F(matrix) 
+
+head(train)
+
+
+# Create tene and training data frames
+df.train <-df[train,] # training data 
+df.test <-df[-train,] # test data 
+
+
+# 위 데이터셋을 이용해서 모델을 생성하고 생성된 모델의 성능 평가
+
+library(glmnet)
+?glmnet
+
+# x: 예측변수(matrix), y: 결과변수(vector), formula 지원 x, family: 결과변수의 확률변수, alpha 1:lidge 2:lasso, lambda : 예측오차를 최소하하는 람다값 지정. 교차검증 후 평가.
+
+x<-model.matrix(PFS ~ ., df.train)[,-1] # 예측변수의 행렬 생성 및 더미변수 자동변환
+head(x) # 예측변수 행렬
+
+
+
+y <- df.train$PFS
+
+# lasso regression analysis
+
+# mse, auc, class, mae, C
+
+
+df.cv <- cv.glmnet(x=x, y=y, family = "binomial",nfolds = 10 ,alpha=1 ,type.measure = "mse")
+plot(df.cv) # 왼쪽 점선이 예측오차를 최소화하는 즉 예측정확도를 가장 크게하는 lambda.min 
+
+png(filename="adddata/riskscore/GSE72970_Mean-Squared Error.png",width=5000,height=4000,res=500)
+plot(df.cv)
+dev.off()
+
+warnings()
+# MSE 최고 lambda 값. overfitting 최소화. 예측정확도와 간명도간의 균형을 맞추어야한다.
+df.cv$lambda.min # 왼쪽 점선
+log(df.cv$lambda.min)
+
+df.cv$lambda.1se # 오늘쪽 점선
+log(df.cv$lambda.1se)
+
+coef(df.cv, df.cv$lambda.min) # 1개의 예측변수(age) 제거됨
+
+
+# 1. 유전자별 프레임생성
+# OS
+colnames(df)
+
+df <- mutate(df,rsCTLA4=df[,5]*-11.884943)
+
+df <- mutate(df,rsCD274=df[,6]*16.690254)
+
+df <- mutate(df,rsCXCL1=df[,7]*-9.758757)
+
+df <- mutate(df,rsCXCL10=df[,8]*-0.558215)
+
+df <- mutate(df,rsHLA_DPA1=df[,9]*8.801873)
+
+df <- mutate(df,rsIFNG=df[,10]*-14.518792)
+
+df <- mutate(df,rsIL1A=df[,11]*9.009551)
+
+df <- mutate(df,rsIL1B=df[,12]*8.316192)
+
+df <- mutate(df,rsTLR8=df[,13]*-15.002964)
+
+rsdf<-df[,c(14:22)]
+
+##
+#PFS
+colnames(df)
+
+df <- mutate(df,rsCTLA4=df[,5]*6.9329860)
+
+df <- mutate(df,rsCD274=df[,6]*-0.8583434)
+
+df <- mutate(df,rsCXCL1=df[,7]*-6.4970926)
+
+df <- mutate(df,rsCXCL10=df[,8]*1.4444468)
+
+df <- mutate(df,rsHLA_DPA1=df[,9]*-6.8037077)
+
+df <- mutate(df,rsIFNG=df[,10]*-6.0383543)
+
+df <- mutate(df,rsIL1A=df[,11]*-0.5339580)
+
+df <- mutate(df,rsIL1B=df[,12]*-3.1204209)
+
+df <- mutate(df,rsTLR8=df[,13]*-0.7757193)
+
+rsdf<-df[,c(14:22)]
+
+#coefficient 곱한변수만 dataframe으로 만들기
+
+
+
+
+rsdf <- mutate(rsdf,score=apply(rsdf,1,sum))
+
+rsdf <- merge(df[,c(1,2,3,4)], rsdf, by=0)
+
+median(rsdf$score, na.rm = FALSE)
+colnames(rsdf)[15]
+rsdf<- mutate(rsdf,group=ifelse(rsdf[,15]>=-121.1908,"high","low"))
+
+rsdf<-rsdf[rsdf$PFS.month<=60,]
+
+####################################################################
+
+
+sfit<-survfit(Surv(PFS.month,PFS)~group,data=rsdf)
+
+
+ggsurv<-ggsurvplot(sfit,pval=TRUE, risk.table=FALSE,pval.size=10,
+                   title="",
+                   fontsize=10,
+                   censor.size=7,
+                   legend.labs=c("High", "Low"), legend.title="Risk",
+                   palette=c("red","dodgerblue2"),
+                   font.legend= c(20, "bold", "black"),
+                   ggtheme = theme_bw(),
+                   xlab = "Progression-free survival (months)",
+                   font.main = c(20, "bold", "black"),
+                   font.x = c(20, "bold", "black"),
+                   font.y = c(20, "bold", "black"),
+                   font.tickslab = c(10, "plain", "black"),
+                   
+)
+
+ggsurv$plot <- ggsurv$plot + 
+  theme(legend.title = element_text(size = 18, color = "black", face = "bold"),
+        legend.text = element_text(size = 18, color = "black", face = "bold"),
+        axis.text.x = element_text(size = 20, color = "black", face = "plain"),
+        axis.text.y = element_text(size = 20, color = "black", face = "plain"),
+        axis.title.x = element_text(size = 20, color = "black", face = "plain"),
+        axis.title.y = element_text(size = 20, color = "black", face = "plain"))
+ggsurv
+
+
+
+ggsave(filename ='/home/dongmin/colorectal cancer microbiome/adddata/riskscore/GSE103479_Riskscore_Progression-free survival.png',
+       device = 'png',
+       dpi = 1200,
+       width= 10000,
+       height = 8000,
+       units = "px")
+
+#GSE103479 : OS: 41명 PFS: 40명(결측치 1)
+
+# ROC curve
+
+install.packages("pROC") 
+
+library(pROC)
+library(MASS)
+
+data("Pima.te")
+View(Pima.te)
+
+summary(Pima.te)   # 데이터의 구조 및 요약 정보를 살펴봅니다.
+
+rsdf$score
+
+# ROC curve
+
+install.packages("pROC") 
+
+library(pROC)
+library(MASS)
+
+data("Pima.te")
+View(Pima.te)
+
+summary(Pima.te)   # 데이터의 구조 및 요약 정보를 살펴봅니다.
+
+rsdf$score
+
+
+Diag_DF <- data.frame(Attribute=c(colnames(rsdf)[c(5,15)]), AUC=NA)   # AUC 계산을 위한 데이터 프레임을 생성합니다. 종속변수, 독립변수 포함 
+for(i in 1:nrow(Diag_DF)){
+  roc_result <- roc(rsdf$PFS, rsdf[,as.character(Diag_DF$Attribute[i])])   # 확진 결과에 대한 데이터(type)와 진단 방법에 대한 후보 변수를 입력하여 AUC를 계산합니다. 
+  Diag_DF[i,'AUC'] <- roc_result$auc   # AUC 값을 입력합니다.
+}
+Diag_DF <- Diag_DF[order(-Diag_DF$AUC),]   # AUC 값을 오름차순 정렬합니다.
+
+View(Diag_DF)
+
+colnames(rsdf)
+
+risk_roc <- roc(rsdf$PFS, rsdf$score)   # "glu" 변수에 대한 ROC를 계산하여 value로 저장합니다.
+
+# 그래프 저장 형식과 파일명을 설정합니다.
+png(filename="adddata/riskscore/GSE103479_PFS_risk score.png",width=5000,height=4000,res=500)
+plot.roc(risk_roc,   # roc를 계산한 value를 입력합니다.
+         col="red",   # 선의 색상을 설정합니다.
+         print.auc=TRUE,   # auc 값을 출력하도록 설정합니다.
+         max.auc.polygon=TRUE,   # auc의 최대 면적을 출력하도록 설정합니다.
+         print.thres=TRUE, print.thres.pch=19, print.thres.col = "red",   # 기준치(cut-off value)에 대한 출력, 포인트, 색상을 설정합니다.
+         auc.polygon=TRUE, auc.polygon.col="#D1F2EB",
+         print.thres.adj=c(0.5,-3), # (x,y) 좌표 위치 (좌우,상하)
+         print.auc.adj=c(0,1))  # AUC 위치
+dev.off()
+
+# 저장
+
+png(filename="adddata/riskscore/GSE72970_risk score .png",width=5000,height=4000,res=500)
+
+dev.off()
+
+####
+
+rsdf<-risk_score_final[,c(2,4:12)]
+####
+
+rsdf<-risk_score_final[,c(2,4:12)]
+
+
+
+
+
+table(ff$characteristics_ch1.14)
