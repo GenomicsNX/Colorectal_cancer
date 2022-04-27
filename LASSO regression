@@ -1,0 +1,231 @@
+# LASSO Regression in R
+# LASSO - Least Absolute shrinkage and selection Operator
+
+# Training LASSO regression in k-fold cross-validation framework
+
+# Goal : improve model prediction (accuracy)
+
+# shrinkage 
+  # avoid overfitting the model to the training data
+  # select only the most important predictor variables
+
+
+# Regularization (L1-norm) 
+  # reduce variance in parameter estimates, even if
+  # this means increasing bias
+
+# Tuning 
+ # tuning parameter
+  # alpha - mixing percentage (alpha = 1)
+  # lambda - regularization tuning parameter
+  
+# Optimize model accuracy w/ model parsimony
+
+# Identifying optimal lambda (best lambda value)
+  # Performance perfoemance  metrics :
+    # Root mean-squared error (RMSE)
+    # R-squared
+    # Mean-squared error (MSE)
+    # cohen's kappa
+    # classification accuracy
+
+# Model Type Selection
+  # OLS Linear Regression ~ Linear LASSO Regression
+  # (Binary) Logistic Regression Logistic LASSO Regression
+
+# Cross-validation (k-fold cross-validation)
+
+# Predictive Analysis (Predictive Modeling) Framework
+
+  # 80/20 random split (80% training data, 20% test data)
+
+
+# 1. penalized regression analysis
+# 지나치게 많은 독립변수를 갖는 model에 페널티를 부과하는 방식으로 보다 간명한 회귀모델을 생성
+# -> model의 성능에 크게 기여하지 못하는 변수의 영향력을 축소하거나 model에서 제거
+# -> 최소자승법에 의한 잔차(관측값 - 예측값)의 제곱합과 페널티항의 합이 최소가 되는 
+#회귀계수를 추정한다.
+
+#LASSO : 1. L1-norm regularization 2. 변수 선택 가능 3. closed form solution이 존재하지 않음
+# 4. 변수 간 상관관계가 높은 상황에서 ridge에 비해 상대적으로 예측 성능 떨어짐
+
+# 큰 lambda 값 : 적은 변수, 간단한 모델, 해석 쉬움, Underfitting 위험증가
+# 작은 lambda 값 : 많은 변수, 복잡한 모델, 해석 어려움, 낮은 학습오차, Overfitting 위험 증가
+
+# Lambda 값을 어떻게 설정할 것인가 <-> 몇 개의 변수를 선택할 것인가?
+
+# Lasso regression analysis는 model의 설명력에 기여하지 못하는 독립변수의 회귀계수(Beta 값)를
+# 0 으로 만든다.
+
+# -> 변수 선택을 통해 설명력이 우수한 독립변수만을 모델에 포함할 수 있고, 이를 통해서 
+# model의 복잡성을 축소할 수 있다.
+
+# 교차검증 : 1개의 dataset을 바탕으로 여러개의 training data와 test data를 생성하고, 
+#여러 차례 성능을 평가한 다음에 얻어진 성능 평가 값을을 평균해서 해당 model의 최종적인
+#성능을 평가한다.
+#############################################################################################
+#############################################################################################
+#############################################################################################
+
+# Example Data. Initial Steps
+
+library(MASS)
+str(Boston)# 미국 Boston지역의 주택가격(medv)과 주변 환경(13개 변수)에 대한 정보. Y 1열, 나머지 X 변수 열의 dataframe structure. data frame
+
+# Statistical Assumptions
+
+##### Partitioning the Data
+
+install.packages("caret", dependencies = T)
+library(caret)
+library(mlbench)
+
+# Set seed
+set.seed(123)
+
+# Partition (split) and create index matrix of selected values
+train<-createDataPartition(y=Boston$medv, p=0.7, list=FALSE, times = 1) # 종속변수 y 지정, p : training data의 비율, list : T(list), F(matrix) 
+
+head(train)
+
+
+# Create tene and training data frames
+Boston.train <-Boston[train,] # training data 
+Boston.test <-Boston[-train,] # test data 
+
+##### k-fold cross-validation (10-fold cross-validation) frame work
+
+# Specify 10-fold cross-validation as trainging method (framework)
+
+ctrlspecs <- trainControl(method = "cv", number = 10,
+                          savePredictions = "all")
+
+##### Specify & Train LASSO Regression Model
+
+# Create vector of potential lambda values
+lambda_vector <- 10^seq(5,-5, length=500)
+
+
+# 위 데이터셋을 이용해서 모델을 생성하고 생성된 모델의 성능 평가
+
+library(glmnet)
+?glmnet
+
+# x: 예측변수(matrix), y: 결과변수(vector), formula 지원 x, family: 결과변수의 확률변수, alpha 1:lidge 2:lasso, lambda : 예측오차를 최소하하는 람다값 지정. 교차검증 후 평가.
+
+x<-model.matrix(medv ~ ., Boston.train) # 예측변수의 행렬 생성 및 더미변수 자동변환
+head(x) # 예측변수 행렬
+
+x<-model.matrix(medv ~ ., Boston.train)[,-1]
+
+y <- Boston.train$medv
+
+# lasso regression analysis
+
+Boston.cv <- cv.glmnet(x=x, y=y, family = "gaussian", alpha=1)
+
+plot(Boston.cv) # 왼쪽 점선이 예측오차를 최소화하는 즉 예측정확도를 가장 크게하는 lambda.min 
+
+# MSE 최고 lambda 값. overfitting 최소화. 예측정확도와 간명도간의 균형을 맞추어야한다.
+Boston.cv$lambda.min # 왼쪽 점선
+log(Boston.cv$lambda.min)
+
+Boston.cv$lambda.1se # 오늘쪽 점선
+log(Boston.cv$lambda.1se)
+
+coef(Boston.cv, Boston.cv$lambda.min) # 1개의 예측변수(age) 제거됨
+
+coef(Boston.cv, Boston.cv$lambda.1se) # 5개의 회귀계수 제거됨
+
+Boston.gnet <- glmnet(x=x, y=y, family = "gaussian", alpha=1, lambda =Boston.cv$lambda.min)
+plot(Boston.gnet, xvar = "lambda", label = TRUE)
+
+
+Boston.test.x <- model.matrix(medv ~ ., Boston.test)[,-1] #예측변수 행렬을 predict에 제공
+
+# Model Prediction
+Boston.pred <- predict(Boston.gnet, newx=Boston.test.x) # 회귀모델 지정(gnet), newx : 예측변수 지정
+
+postResample(pred=Boston.pred, obs = Boston.test$medv)
+
+############################################################################
+############################################################################
+############################################################################
+############################################################################
+############################################################################
+
+# Colorectal cancer - M1 macrophages High vs Low 
+
+
+r.score_60month<-r.score[r.score$OS.month<=60,]
+write.csv(r.score_60month,file = "/home/dongmin/colorectal cancer microbiome/riskScore.csv")
+
+df<- read.csv(file = "./riskScore.csv", row.names = 1)
+
+
+# Set seed
+set.seed(123)
+
+
+# Partition (split) and create index matrix of selected values
+train<-createDataPartition(y=df$OS, p=0.8, list=FALSE) # 종속변수 y 지정, p : training data의 비율, list : T(list), F(matrix) 
+
+head(train)
+
+
+# Create tene and training data frames
+df.train <-df[train,] # training data 
+df.test <-df[-train,] # test data 
+
+
+# 위 데이터셋을 이용해서 모델을 생성하고 생성된 모델의 성능 평가
+
+library(glmnet)
+?glmnet
+
+# x: 예측변수(matrix), y: 결과변수(vector), formula 지원 x, family: 결과변수의 확률변수, alpha 1:lidge 2:lasso, lambda : 예측오차를 최소하하는 람다값 지정. 교차검증 후 평가.
+
+x<-model.matrix(OS ~ ., df.train)[,-1] # 예측변수의 행렬 생성 및 더미변수 자동변환
+head(x) # 예측변수 행렬
+
+
+
+y <- df.train$OS
+
+# lasso regression analysis
+
+# mse, auc, class, mae, C
+
+
+df.cv <- cv.glmnet(x=x, y=y, family = "binomial",nfolds = 10, alpha=1 ,type.measure = "mse")
+plot(df.cv) # 왼쪽 점선이 예측오차를 최소화하는 즉 예측정확도를 가장 크게하는 lambda.min 
+
+png(filename="adddata/riskscore/Mean-Squared Error.png",width=5000,height=4000,res=500)
+plot(df.cv)
+dev.off()
+
+
+# MSE 최고 lambda 값. overfitting 최소화. 예측정확도와 간명도간의 균형을 맞추어야한다.
+df.cv$lambda.min # 왼쪽 점선
+log(df.cv$lambda.min)
+
+df.cv$lambda.1se # 오늘쪽 점선
+log(df.cv$lambda.1se)
+
+coef(df.cv, df.cv$lambda.min) # 1개의 예측변수(age) 제거됨
+
+coef(df.cv, df.cv$lambda.1se) # 5개의 회귀계수 제거됨
+
+df.gnet <- glmnet(x=x, y=y, family = "binomial", alpha=1)#, lambda = df.cv$lambda.min)
+plot(df.gnet, xvar = "lambda")
+
+png(filename="adddata/riskscore/coefficient .png",width=5000,height=4000,res=500)
+plot(df.gnet, xvar = "lambda")
+dev.off()
+
+install.packages("magrittr")
+library(magrittr)
+
+df.test.x <- model.matrix(OS ~ ., df.test)[,-1] #예측변수 행렬을 predict에 제공
+probabilities <-  predict(df.gnet, newx=df.test.x)
+predicted.classes <- ifelse(probabilities > 0.5, "High", "Low") # risk High and Low
