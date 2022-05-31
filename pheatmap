@@ -1,0 +1,247 @@
+# Heatmap
+
+test
+
+row.names(BMImetaData)<-BMImetaData$barcode
+
+tt<-BMImetaData[4]
+
+d<-merge(tt,test,by=0)
+
+row.names(d)<-d$Group
+
+
+x <- as.data.frame(t(heatmaplist))
+x <- cpm(x, log=TRUE)
+x <- scale(x)
+
+hist(as.matrix(x))
+test<-x
+
+  
+test<-apply(test, 2, function(x) { (x / mean(x))*x })
+
+test2<-as.data.frame(t(test))
+
+
+hist(as.matrix(test))
+heatmap(as.matrix(test2))
+
+
+x<-test2
+
+x<-as.matrix(x)
+
+
+# heatmap
+
+heatmap<-read.csv(file = "./surv/heatmap.csv")
+
+heatmap<-heatmap[-1]
+
+row.names(heatmap)<-heatmap$genes
+
+heatmaplist<-merge(heatmap,eData, by=0)
+heatmaplist<-heatmaplist[-1]
+
+row.names(heatmaplist)<-heatmaplist$genes
+
+heatmaplist<-heatmaplist[-1]
+
+
+install.packages("gplots")
+library("gplots")
+
+str(heatmaplist)
+heatmaplist<-as.data.frame(heatmaplist)
+heatmaplist<- as.factor(heatmaplist)
+heatmaplist
+
+x<- heatmaplist
+
+x<-cpm(x)
+x<-log10(x)
+
+hist(x)
+r<-nrow(x)
+c<-ncol(x)
+
+rownames(x)<-1:r
+colnames(x)<- 1:c
+
+par(oma=c(2,2,2,2))
+
+heatmap(x, Rowv=NA, Colv=NA, col=c("white", "black"), scale("none"), xlab="", ylab="")
+
+###### 재배열 알고리즘 적용
+
+install.packages("gclus")
+
+library(gclus)
+
+(c.seq<- order.endlink(-dist(t(x))))
+
+(r.seq<-order(x[,c.seq]%*%(1:c-(1+c)/2)))
+
+par(oma=c(2,2,2,2))
+
+heatmap(x[r.seq,c.seq], Rowv=NA, Colv=NA, col=c("white", "black"), scale("none"), xlab="", ylab="")
+
+
+######## 색상 입히기
+
+
+install.packages("RColorBrewer")
+library(RColorBrewer)
+
+(c.seq<- order.endlink(-dist(t(x))))
+
+(r.seq<-order(x[,c.seq]%*%(1:c-(1+c)/2)))
+
+par(oma=c(2,2,2,2))
+
+heatmap(x[r.seq,c.seq], Rowv=NA, Colv=NA, scale("none"), xlab="", ylab="", hclustfun = "ward.D")
+
+
+
+
+
+x
+
+
+BMImetaData$sample
+
+
+test_kang <- as.data.frame(t(x))
+
+rownames(test_kang)<- substr(rownames(test_kang),1,12)
+
+test_kang$sample <- rownames(test_kang)
+
+test_kang<-as.data.frame(merge(test_kang,BMImetaData[,c(2,4)],by='sample'))
+
+test_kang<-test_kang[order(test_kang$Group),]
+
+rownames(test_kang)<-test_kang$sample
+test_kang<-test_kang[,-1]
+
+test_kang<-test_kang[,c(rownames(up_regulated),rownames(down_regulated),"BMI")]
+
+View(test_kang)
+
+ncol(test_kang)
+heatmap(as.matrix(test_kang[,1:569]), Rowv=NA, Colv=NA, scale("none"), xlab="", ylab="")
+
+View(test_kang)
+
+library(pheatmap)
+annotation_row = data.frame(BMI=test_kang$Group)
+annotation_col = data.frame(Genes=c(rep("Up_regulated",271),rep("Down_regulated",nrow(down_regulated))))
+rownames(annotation_col) <- colnames(test_kang)[1:569]
+
+
+
+rownames(annotation_row)<-rownames(test_kang)
+
+nrow(up_regulated)
+
+pheatmap(
+  mat               = mat,
+  color             = greenred(10),
+  breaks            = mat_breaks,
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  border_color      = NA,
+  show_colnames     = FALSE,
+  show_rownames     = FALSE,
+  annotation_row = annotation_col,
+  annotation_col = annotation_row,
+  annotation_colors = mat_colors,
+  drop_levels       = TRUE,
+  fontsize          = 14,
+  main              = ""
+)
+
+
+
+
+heatmappp<-as.matrix(t(kang_raw))
+
+mat_breaks <- seq(min(heatmappp), max(heatmappp), length.out = 10)
+
+
+test_kang1<-as.data.frame(apply(test_kang[,1:569],2,scale))
+rownames(test_kang1)<-rownames(test_kang)
+
+
+nrow(up_regulated)
+View(test_kang)
+nrow(down_regulated)
+
+1:88 
+89:178
+
+test_kang1<-test_kang
+
+test_kang1 <- as.matrix(test_kang1[,-570])
+
+test_kang1[89:178,1:271]= -test_kang[89:178,1:271]
+test_kang1[1:88,272:569]= -test_kang[1:88,272:569]
+test_kang1<-as.data.frame(test_kang1)
+
+
+
+test_kang2[1:88,1:271] <- test_kang2[1:88,1:271]+2
+test_kang2[89:178,272:569] <- test_kang2[89:178,272:569]+2
+
+
+
+test_kang2[89:178,1:271] <- -test_kang2[89:178,1:271]
+test_kang2[1:88,272:569] <- -test_kang2[1:88,272:569]
+
+
+
+colnames(heatmaplist) <- substr(colnames(heatmaplist),1,12)
+
+kang_raw <- heatmaplist[colnames(test_kang)[1:569],rownames(test_kang)]
+
+
+normalized = (x-min(x))/(max(x)-min(x))
+
+kang_raw<-apply(kang_raw, 1, normalize)
+
+kang_raw <- as.data.frame(kang_raw)
+
+kang_raw[1:88,272:569]<- -kang_raw[1:88,272:569]
+kang_raw[89:178,1:271]<- -kang_raw[89:178,1:271]
+
+
+
+###################
+###################
+###################
+
+#annotation color
+
+ann_colors = list(
+  Genes = c(Up_regulated = "#D95F02", Down_regulated = "#1B9E77"),
+  BMI = c(High = "#7570B3", Low = "#E7298A"))
+
+pheatmap(
+  mat               = mat,
+  color             = greenred(11),
+  breaks            = mat_breaks,
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  border_color      = NA,
+  show_colnames     = FALSE,
+  show_rownames     = FALSE,
+  annotation_row = annotation_col,
+  annotation_col = annotation_row,
+  annotation_colors = ann_colors,
+  drop_levels       = TRUE,
+  fontsize          = 10
+  
+  )
+
+?pheatmap
