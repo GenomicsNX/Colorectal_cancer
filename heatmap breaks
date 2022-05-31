@@ -1,0 +1,161 @@
+https://landau1994.github.io/2020/04/20/pheatmap_advanced/
+  install.packages("kableExtra")  
+library(viridis)
+mat<-heatmappp
+
+
+mat<-heatmappp
+
+colnames(mat) <- paste(
+  rep(1:3, each = ncol(mat) / 3),
+  replicate(ncol(mat), random_string(5)),
+  sep = ""
+)
+rownames(mat) <- replicate(nrow(mat), random_string(3))
+
+mat %>% as.data.frame %>% head(3) %>% select(1:3) %>% kable() %>%
+  kable_styling(bootstrap_options = "striped", full_width = F)
+
+col_groups <- substr(colnames(mat), 1, 1)
+mat[,col_groups == "1"] <- mat[,col_groups == "1"] * 5
+
+library(knitr)
+library(kableExtra)
+# install.packages("pheatmap", "RColorBrewer", "viridis")
+library(pheatmap)
+library(RColorBrewer)
+library(viridis)
+
+# Data frame with column annotations.
+mat_col <- data.frame(group = col_groups)
+rownames(mat_col) <- colnames(mat)
+
+# List with colors for each annotation.
+mat_colors <- list(group = brewer.pal(3, "Set1"))
+names(mat_colors$group) <- unique(col_groups)
+
+pheatmap(
+  mat               = mat,
+  color             = inferno(10),
+  cluster_rows = FALSE,
+  cluster_cols = FALSE,
+  border_color      = NA,
+  show_colnames     = FALSE,
+  show_rownames     = FALSE,
+  annotation_row = annotation_col,
+  annotation_col = annotation_row,
+  annotation_colors = mat_colors,
+  drop_levels       = TRUE,
+  fontsize          = 14,
+  main              = "Default Heatmap"
+)
+
+mat_breaks <- seq(min(mat), max(mat), length.out = 10)
+
+dat <- data.frame(values = as.numeric(mat))
+
+dat_colors <- data.frame(
+  xmin = mat_breaks[1:(length(mat_breaks)-1)],
+  xmax = mat_breaks[2:length(mat_breaks)],
+  ymin = 0,
+  ymax = max(density(mat, bw = "SJ")$y),
+  fill = rev(inferno(length(mat_breaks) - 1)),
+  stringsAsFactors = FALSE
+)
+ggplot() +
+  geom_rect(
+    data = dat_colors,
+    mapping = aes(
+      xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax, fill = fill
+    )
+  ) +
+  geom_density(
+    data = dat,
+    mapping = aes(values),
+    bw = "SJ", color = "cyan"
+  ) +
+  scale_fill_manual(values = dat_colors$fill) +
+  cowplot::theme_cowplot()+
+  theme(legend.position = "none") +
+  labs(title = "Uniform breaks")
+
+dat2 <- as.data.frame(table(cut(
+  mat, mat_breaks
+)))
+dat2$fill <- inferno(nrow(dat2))
+ggplot() +
+  geom_bar(
+    data = dat2,
+    mapping = aes(x = Var1, weight = Freq, fill = Var1),
+    color = "black", size = 0.1
+  ) +
+  coord_flip() +
+  scale_fill_manual(values = dat2$fill) +
+  cowplot::theme_cowplot()+
+  theme(legend.position = "none") +
+  labs(y = "data points", x = "breaks",
+       title = "Number of data points per color")
+
+quantile_breaks <- function(xs, n = 10) {
+  breaks <- quantile(xs, probs = seq(0, 1, length.out = n))
+  breaks[!duplicated(breaks)]
+}
+
+mat_breaks <- quantile_breaks(mat, n = 11)
+lets see
+
+dat_colors <- data.frame(
+  xmin = mat_breaks[1:(length(mat_breaks)-1)],
+  xmax = mat_breaks[2:length(mat_breaks)],
+  ymin = 0,
+  ymax = max(density(mat, bw = "SJ")$y),
+  fill = rev(inferno(length(mat_breaks) - 1)),
+  stringsAsFactors = FALSE
+)
+ggplot() +
+  geom_rect(
+    data = dat_colors,
+    mapping = aes(
+      xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax, fill = fill
+    )
+  ) +
+  geom_density(
+    data = dat,
+    mapping = aes(values),
+    bw = "SJ", color = "cyan"
+  ) +
+  scale_fill_manual(values = dat_colors$fill) +
+  theme(legend.position = "none") +
+  labs(title = "Quantile breaks")
+
+dat2 <- as.data.frame(table(cut(
+  mat, mat_breaks
+)))
+dat2$fill <- inferno(nrow(dat2))
+ggplot() +
+  geom_bar(
+    data = dat2,
+    mapping = aes(x = Var1, weight = Freq, fill = Var1),
+    color = "black", size = 0.1
+  ) +
+  coord_flip() +
+  scale_fill_manual(values = dat2$fill) +
+  theme(legend.position = "none") +
+  labs(y = "data points", x = "breaks",
+       title = "Number of data points per color")
+
+
+pheatmap(
+  mat               = mat,
+  color             = greenred(100),
+  breaks            = mat_breaks,
+  border_color      = NA,
+  show_colnames     = FALSE,
+  show_rownames     = FALSE,
+  annotation_col    = mat_col,
+  annotation_colors = mat_colors,
+  drop_levels       = TRUE,
+  fontsize          = 14,
+  main              = "Quantile Color Scale"
+)
+
